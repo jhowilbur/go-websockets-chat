@@ -13,5 +13,8 @@ func routes() http.Handler {
 	mux.Get("/ws", http.HandlerFunc(handlers.WsEndpoint))
 	mux.Get("/ws/ping", http.HandlerFunc(handlers.WsPingEndpoint))
 
+	fileServe := http.FileServer(http.Dir("./html/static/"))
+	mux.Get("/html/static/", http.StripPrefix("/html/static/", fileServe))
+
 	return mux
 }

@@ -41,6 +41,10 @@
                 <input type="text" name="message" class="form-control" id="message" autocomplete="off">
             </div>
 
+            <hr />
+            <a href="javascript:void(0)" class="btn btn-outline-secondary" id="sendMessageBtn">Send Message</a>
+            <hr />
+
             <input type="hidden" name="action" id="action">
 
             <br />
@@ -64,11 +68,14 @@
 <!--bootstrap 5-->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
 
+<script src="/html/static/reconnecting-websocket.min.js"></script>
+
 <script>
     let socket = null;
 
     document.addEventListener('DOMContentLoaded', function () {
-        socket = new WebSocket('ws://localhost:5000/ws');
+        // socket = new WebSocket('ws://localhost:5000/ws');
+        socket = new ReconnectingWebSocket('ws://localhost:5000/ws', null, {debug: true, reconnectInterval: 3000});
 
         socket.onerror = function (error) {
             console.log('WebSocket Error: ' + error);
@@ -100,6 +107,13 @@
                         });
                     }
                     break;
+
+                case "message_received":
+                    let output = document.getElementById('output');
+                    let p = document.createElement('p');
+                    p.appendChild(document.createTextNode(data.username + ": " + data.message));
+                    output.appendChild(p);
+                    break;
             }
         };
 
@@ -117,14 +131,24 @@
             console.log("Username connected: " + this.value)
         });
 
-        let messageInput = document.getElementById('message');
-        // messageInput.addEventListener('change', function () {
-        //     let jsonData = {};
-        //     jsonData['action'] = 'send_message';
-        //     jsonData['message'] = this.value;
-        //
-        //     socket.send(JSON.stringify(jsonData));
-        // });
+        document.getElementById('sendMessageBtn').addEventListener('keydown', function (event) {
+            if (event.key === "Enter") {
+                event.preventDefault()
+                event.stopPropagation()
+
+                sendMessage();
+            }
+        });
+        function sendMessage() {
+            let jsonData = {};
+            jsonData['action'] = 'send_message';
+            jsonData['message'] = document.getElementById('message');
+            jsonData['username'] = document.getElementById('username').value;
+
+            socket.send(JSON.stringify(jsonData));
+
+            document.getElementById('message').value = "";
+        }
 
     });
 </script>

@@ -135,12 +135,19 @@ func ListenToWsChannel() {
 		e := <-wsChan
 		switch e.Action {
 		case "set_username":
-			log.Printf("New user from %s connected %s", e.Conn, e.Username)
+			log.Printf("New user from (%s) connected %s", e.Conn.UnderlyingConn().RemoteAddr().String(), e.Username)
 			clients[e.Conn] = e.Username
 
 			users := getUserList()
 			response.Action = "users_list"
 			response.ConnectedUsers = users
+
+			broadcastToAll(response)
+		case "send_message":
+			log.Printf("Message received from %s: %s", e.Username, e.Message)
+			response.Action = "message_received"
+			response.Message = e.Message
+			response.ConnectedUsers = getUserList()
 
 			broadcastToAll(response)
 		}
