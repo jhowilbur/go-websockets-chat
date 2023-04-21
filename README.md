@@ -10,6 +10,14 @@ It allows multiple users to chat with each other in real-time.
 - Support for multiple users
 
 ## Getting Started
+### To run the server:
 
+```bash
+go run main.go
+```
 
+### To package the server:
 
+```bash
+go build
+```

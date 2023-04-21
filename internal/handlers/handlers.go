@@ -1,17 +1,26 @@
 package handlers
 
 import (
+	"fmt"
 	"github.com/CloudyKit/jet/v6"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 )
 
+// wsChan is a channel for websocket payloads
+var wsChan = make(chan WsPayload)
+
+// clients is a map of websocket connections
+var clients = make(map[WebSocketConnection]string)
+
+// views is a set of jet templates
 var views = jet.NewSet(
 	jet.NewOSFileSystemLoader("./html"),
 	jet.InDevelopmentMode(),
 )
 
+// upgradeConnection is a websocket upgrader
 var upgradeConnection = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -47,11 +56,24 @@ func renderPage(w http.ResponseWriter, tmpl string, data jet.VarMap) error {
 	return nil
 }
 
+// WebSocketConnection defines a websocket connection
+type WebSocketConnection struct {
+	*websocket.Conn
+}
+
 // WsJsonResponse defines the response sent back from websocket
 type WsJsonResponse struct {
 	Action      string `json:"action"`
 	Message     string `json:"message"`
 	MessageType string `json:"message_type"`
+}
+
+// WsPayload defines the payload sent to the websocket
+type WsPayload struct {
+	Action   string              `json:"action"`
+	Username string              `json:"username"`
+	Message  string              `json:"message"`
+	Conn     WebSocketConnection `json:"conn"`
 }
 
 // WsEndpoint handles the websocket connection
@@ -62,15 +84,74 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	var response WsJsonResponse
 	response.Message = "Hello from the server"
-	response.MessageType = "success"
-	response.Action = "message from action"
+
+	conn := WebSocketConnection{Conn: ws}
+	clients[conn] = ""
 
 	err = ws.WriteJSON(response)
 	if err != nil {
 		log.Println(err)
 	}
+
+	go ListenForWs(&conn)
 }
 
+// ListenForWs listens for websocket messages
+func ListenForWs(conn *WebSocketConnection) {
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Println("Websocket connection closed with error: ", err)
+		}
+	}()
+
+	for {
+		var payload WsPayload
+		err := conn.ReadJSON(&payload)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		payload.Conn = *conn
+		wsChan <- payload
+	}
+}
+
+// ListenToWsChannel listens to the websocket channel
+func ListenToWsChannel() {
+	var response WsJsonResponse
+
+	for {
+		//e := <-wsChan
+		//switch e.Action {
+		//case "set_username":
+		//	clients[e.Conn] = e.Username
+		//	response.Action = "set_username"
+		//}
+
+		event := <-wsChan
+		response.Action = "Got listen channel"
+		response.Message = fmt.Sprintf("Some messagem from listen channel from Action: %s", event.Action)
+		response.MessageType = "info"
+		broadcastToAll(response)
+	}
+}
+
+// broadcastToAll broadcasts a message to all connected clients
+func broadcastToAll(response WsJsonResponse) {
+	for client := range clients {
+		err := client.WriteJSON(response)
+
+		if err != nil {
+			log.Println(err)
+			_ = client.Close()
+			delete(clients, client)
+			return
+		}
+	}
+}
+
+// WsPingEndpoint handles the websocket ping connection for testing connectivity
 func WsPingEndpoint(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgradeConnection.Upgrade(w, r, nil)
 	if err != nil {

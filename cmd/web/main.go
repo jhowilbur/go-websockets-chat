@@ -1,14 +1,16 @@
 package main
 
 import (
+	"github.com/jhowilbur/go-websockets-chat/internal/handlers"
 	"log"
 	"net/http"
 )
 
 func main() {
-	routes := routes()
-	log.Println("Starting server on :5000")
+	mux := routes()
+	go handlers.ListenToWsChannel()
 
 	// Start the server
-	_ = http.ListenAndServe(":5000", routes)
+	log.Println("Starting server on :5000")
+	_ = http.ListenAndServe(":5000", mux)
 }
