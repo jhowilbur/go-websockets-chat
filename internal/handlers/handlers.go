@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"fmt"
 	"github.com/CloudyKit/jet/v6"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"sort"
 )
 
 // wsChan is a channel for websocket payloads
@@ -13,6 +13,8 @@ var wsChan = make(chan WsPayload)
 
 // clients is a map of websocket connections
 var clients = make(map[WebSocketConnection]string)
+
+var response WsJsonResponse
 
 // views is a set of jet templates
 var views = jet.NewSet(
@@ -63,9 +65,10 @@ type WebSocketConnection struct {
 
 // WsJsonResponse defines the response sent back from websocket
 type WsJsonResponse struct {
-	Action      string `json:"action"`
-	Message     string `json:"message"`
-	MessageType string `json:"message_type"`
+	Action         string   `json:"action"`
+	Message        string   `json:"message"`
+	MessageType    string   `json:"message_type"`
+	ConnectedUsers []string `json:"connected_users"`
 }
 
 // WsPayload defines the payload sent to the websocket
@@ -79,18 +82,25 @@ type WsPayload struct {
 // WsEndpoint handles the websocket connection
 func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgradeConnection.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+	}
 
 	log.Println("Client socket successfully connected")
 
-	var response WsJsonResponse
-	response.Message = "Hello from the server"
-
 	conn := WebSocketConnection{Conn: ws}
-	clients[conn] = ""
+	//clients[conn] = ""
 
-	err = ws.WriteJSON(response)
-	if err != nil {
-		log.Println(err)
+	// inform actual users
+	users := getUserList()
+	if len(users) > 0 {
+		response.ConnectedUsers = users
+		response.Action = "users_list"
+
+		err = ws.WriteJSON(response)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	go ListenForWs(&conn)
@@ -122,19 +132,30 @@ func ListenToWsChannel() {
 	var response WsJsonResponse
 
 	for {
-		//e := <-wsChan
-		//switch e.Action {
-		//case "set_username":
-		//	clients[e.Conn] = e.Username
-		//	response.Action = "set_username"
-		//}
+		e := <-wsChan
+		switch e.Action {
+		case "set_username":
+			log.Printf("New user from %s connected %s", e.Conn, e.Username)
+			clients[e.Conn] = e.Username
 
-		event := <-wsChan
-		response.Action = "Got listen channel"
-		response.Message = fmt.Sprintf("Some messagem from listen channel from Action: %s", event.Action)
-		response.MessageType = "info"
-		broadcastToAll(response)
+			users := getUserList()
+			response.Action = "users_list"
+			response.ConnectedUsers = users
+
+			broadcastToAll(response)
+		}
+
 	}
+}
+
+func getUserList() []string {
+	var userList []string
+
+	for _, user := range clients {
+		userList = append(userList, user)
+	}
+	sort.Strings(userList)
+	return userList
 }
 
 // broadcastToAll broadcasts a message to all connected clients

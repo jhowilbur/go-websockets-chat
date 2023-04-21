@@ -51,7 +51,7 @@
 
         <div class="col-md-4">
             <h3>Users Online</h3>
-
+            <ul id="online_users"> </ul>
 
         </div>
     </div>
@@ -83,7 +83,24 @@
 
         socket.onmessage = function (event) {
             let data = JSON.parse(event.data);
-            console.log(data);
+            console.log("Action received from ws: " + data.action);
+
+            switch (data.action) {
+                case "users_list":
+                    let ul = document.getElementById('online_users');
+                    while (ul.firstChild) {
+                        ul.removeChild(ul.firstChild);
+                    }
+
+                    if (data.connected_users.length > 0) {
+                        data.connected_users.forEach(function (user) {
+                            let li = document.createElement('li');
+                            li.appendChild(document.createTextNode(user));
+                            ul.appendChild(li);
+                        });
+                    }
+                    break;
+            }
         };
 
         let userInput = document.getElementById('username');
@@ -92,12 +109,23 @@
             jsonData['action'] = 'set_username';
             jsonData['username'] = this.value;
 
-            socket.send(JSON.stringify(jsonData));
+            if (this.value === "") {
+                jsonData['username'] = "Anonymous";
+            }
 
-            console.log(jsonData);
+            socket.send(JSON.stringify(jsonData));
+            console.log("Username connected: " + this.value)
         });
 
         let messageInput = document.getElementById('message');
+        // messageInput.addEventListener('change', function () {
+        //     let jsonData = {};
+        //     jsonData['action'] = 'send_message';
+        //     jsonData['message'] = this.value;
+        //
+        //     socket.send(JSON.stringify(jsonData));
+        // });
+
     });
 </script>
 </body>
