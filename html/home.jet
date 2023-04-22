@@ -38,25 +38,24 @@
 
             <div class="form-group">
                 <label for="message">Message: </label>
-                <input type="text" name="message" class="form-control" id="message" autocomplete="off">
+                <input type="text" name="message" class="form-control" id="message" autocomplete="off" >
             </div>
 
             <hr />
-            <a href="javascript:void(0)" class="btn btn-outline-secondary" id="sendMessageBtn">Send Message</a>
-            <hr />
+            <a href="javascript:void(0);" class="btn btn-outline-secondary" id="sendBtn">Send Message</a>
 
             <input type="hidden" name="action" id="action">
 
-            <br />
-            <div id="output" class="chatbox">
+            <div id="status" class="mt-2 float-end"></div>
 
-            </div>
+            <br />
+            <div id="output" class="chatbox"></div>
+
         </div>
 
         <div class="col-md-4">
             <h3>Users Online</h3>
             <ul id="online_users"> </ul>
-
         </div>
     </div>
 
@@ -67,11 +66,17 @@
 
 <!--bootstrap 5-->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/notie/4.3.1/notie.min.js"
+        integrity="sha512-NHRCwRf2LnVSlLDejCA9oS3fG3/FLSQIPCjAWl3M7tVi5wszwr6FxkjotWnQDXLE+aLKcxRrzFDNEgXj9nvkPw=="
+        crossorigin="anonymous"></script>
 
 <script src="/html/static/reconnecting-websocket.min.js"></script>
 
 <script>
     let socket = null;
+    let o = document.getElementById('output');
+    let userField = document.getElementById("username");
+    let messageField = document.getElementById("message");
 
     document.addEventListener('DOMContentLoaded', function () {
         // socket = new WebSocket('ws://localhost:5000/ws');
@@ -94,26 +99,24 @@
 
             switch (data.action) {
                 case "users_list":
-                    let ul = document.getElementById('online_users');
-                    while (ul.firstChild) {
-                        ul.removeChild(ul.firstChild);
+                    let ulUser = document.getElementById('online_users');
+                    while (ulUser.firstChild) {
+                        ulUser.removeChild(ulUser.firstChild);
                     }
 
                     if (data.connected_users.length > 0) {
                         data.connected_users.forEach(function (user) {
                             let li = document.createElement('li');
                             li.appendChild(document.createTextNode(user));
-                            ul.appendChild(li);
+                            ulUser.appendChild(li);
                         });
                     }
                     break;
 
                 case "message_received":
-                    let output = document.getElementById('output');
-                    let p = document.createElement('p');
-                    p.appendChild(document.createTextNode(data.username + ": " + data.message));
-                    output.appendChild(p);
+                    o.innerHTML += data.message;
                     break;
+
             }
         };
 
@@ -131,26 +134,52 @@
             console.log("Username connected: " + this.value)
         });
 
-        document.getElementById('sendMessageBtn').addEventListener('keydown', function (event) {
-            if (event.key === "Enter") {
-                event.preventDefault()
-                event.stopPropagation()
+        document.getElementById('message').addEventListener('keydown', function (event) {
+            if (event.code === "Enter") {
+                if (!socket) {
+                    console.log("no connection");
+                    return false
+                }
 
-                sendMessage();
+                if ((userField.value === "") || (messageField.value === "")) {
+                    errorMessage("Fill out username and message!");
+                    return false;
+                } else {
+                    sendMessage()
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
             }
         });
-        function sendMessage() {
-            let jsonData = {};
-            jsonData['action'] = 'send_message';
-            jsonData['message'] = document.getElementById('message');
-            jsonData['username'] = document.getElementById('username').value;
 
-            socket.send(JSON.stringify(jsonData));
-
-            document.getElementById('message').value = "";
-        }
-
+        document.getElementById("sendBtn").addEventListener("click", function () {
+            if ((userField.value === "") || (messageField.value === "")) {
+                errorMessage("Fill out username and message!");
+                return false;
+            } else {
+                sendMessage()
+            }
+        })
     });
+
+    function sendMessage() {
+        let jsonData = {};
+        jsonData['action'] = 'send_message';
+        jsonData['message'] = document.getElementById('message').value;
+        jsonData['username'] = document.getElementById('username').value;
+
+        socket.send(JSON.stringify(jsonData));
+        console.log("Message sent: " + document.getElementById('message').value)
+    }
+
+    function errorMessage(msg) {
+        notie.alert({
+            type: 'error',
+            text: msg,
+        })
+    }
+
 </script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"github.com/CloudyKit/jet/v6"
 	"github.com/gorilla/websocket"
 	"log"
@@ -133,23 +134,24 @@ func ListenToWsChannel() {
 
 	for {
 		e := <-wsChan
+
 		switch e.Action {
 		case "set_username":
 			log.Printf("New user from (%s) connected %s", e.Conn.UnderlyingConn().RemoteAddr().String(), e.Username)
 			clients[e.Conn] = e.Username
-
 			users := getUserList()
 			response.Action = "users_list"
 			response.ConnectedUsers = users
-
 			broadcastToAll(response)
+
 		case "send_message":
-			log.Printf("Message received from %s: %s", e.Username, e.Message)
 			response.Action = "message_received"
-			response.Message = e.Message
-			response.ConnectedUsers = getUserList()
 
+			log.Println("User: (" + e.Username + ") sent message: " + e.Message + "")
+			message := fmt.Sprintf("<strong>%s:<strong> %s <br>", e.Username, e.Message)
+			response.Message = message
 			broadcastToAll(response)
+
 		}
 
 	}

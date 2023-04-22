@@ -9,6 +9,16 @@ It allows multiple users to chat with each other in real-time.
 - Clean and simple user interface
 - Support for multiple users
 
+---
+
+#### Chat Web
+![Alt text](.github/img/chat-web-websocket.png?raw=true "Chat Web")
+
+#### Code Log
+![Alt text](.github/img/chat-web-websocket-2.png?raw=true "Code Log")
+
+---
+
 ## Getting Started
 ### To run the server:
 
