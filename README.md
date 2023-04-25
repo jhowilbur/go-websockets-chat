@@ -29,5 +29,12 @@ go run main.go
 ### To package the server:
 
 ```bash
-go build
+go build ./cmd/web/*.go
 ```
+
+### Using docker
+```bash
+docker build --tag go-chat:1 .
+docker run -p 5000:5000 go-chat:1
+```
+
